@@ -177,10 +177,10 @@ services:
 Payload : " onclick=alert(document.cookie) "
 ```
 
-- `onfocus`라는 JavaScript 이벤트 핸들러를 포함.
-- `ENT_NOQUOTES` 플래그가 적용된 상태에서 큰따옴표(`"`)가 변환되지 않음
-  => 입력 필드의 속성 값으로 그대로 들어가게 되며, 악성 스크립트가 HTML 속성으로 삽입됨. 
-  => 필드에 초점을 맞추면 `alert(1)`이라는 JavaScript 코드가 실행됨.
+- `onclick`라는 JavaScript 이벤트 핸들러를 포함.
+- alert(document.cookie): document.cookie는 현재 사이트의 쿠키 값을 가져오는 JavaScript 명령
+- alert() 함수 : 팝업 창을 띄우는 함수로, document.cookie 값을 사용자에게 표시함.
+  => 공격자는 사용자의 브라우저에서 쿠키 정보를 확인할 수 있음.
   
 **∴** 사용자가 해당 필드에 접근할 떄마다 XSS코드가 실행되므로, 악성 스크립트가 WordPress관리 페이지에서 실행되는 위험한 상황 발생.
 
