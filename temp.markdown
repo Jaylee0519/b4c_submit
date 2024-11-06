@@ -185,7 +185,43 @@ Payload : " onclick=alert(document.cookie) "
 **∴** 사용자가 해당 필드에 접근할 떄마다 XSS코드가 실행되므로, 악성 스크립트가 WordPress관리 페이지에서 실행되는 위험한 상황 발생.
 
 
-### Solution
-- `ENT_NOQUOTES` 대신 `ENT_QUOTES` 옵션을 사용 => `'`,`"` 를 HTML 엔터티로 변환
-- `esc_attr()`와 같은 워드프레스 보안 함수를 사용하기
+## 패치 디핑 (Patch Diffing)
+ : 패치 전후의 코드를 비교, 보안 수정이 적용된 위치를 확인하고 해당 수정으로 해결된 취약점을 추적하는 과정.
+ 
+ 해당 취약점은 Extra User Details 플러그인 **0.5 이하 버전**에서 발생했음 => 이하 버전 중 `extra-user-details.0.4.3.1` 플러그인을 임의로 선택해 WordPress에 다운로드하였음.
+ ![[스크린샷 2024-11-07 오전 12.50.08.png]]
+
+![[스크린샷 2024-11-07 오전 12.50.29.png]]
+그리고 **사용자 > Extra User Details > Currently defined fields** 항목에서 위에서 말한 페이로드 `Payload : " onclick=alert(document.cookie) "`를 삽입하는 작업을 수행하였음.
+
+=> 이를 통해 플러그인의 입력 필드가 어떻게 처리되는지 확인하고, 잠재적인 취약점을 탐색할 수 있음.
+
+![[스크린샷 2024-11-07 오전 1.04.16.png]]
+그 결과 위와 같이 '`127.0.0.1:8080 내용: wordpress_test_cookie=WP%20Cookie%20check; wp-settings-time-1=1730889304`'라는 팝업이 발생한 것을 볼 수 있음.
+해당 동작은 **XSS취약점의 증거**로, 사용자 입력이 필터링 없이 그대로 HTML 코드로 실행되었음을 의미함.
+
+또, 이를 개발자 도구에서 **Network**탭을 통해 HTTP요청 정보를 관찰해보았음.
+![[스크린샷 2024-11-07 오전 1.17.46.png]]
+`eud_fields[9307][2]`의 값으로 `" onclick=alert(document.cookie) "` 가 입력됨.
+=> 위 사진을 통해 Extra User Details 필드에 삽입된 페이로드가 그대로 전송된 것을 확인할 수 있었음.
+
+-`docker ps`를 통해 현재 실행중인 컨테이너 목록을 출력  
+-`docker exec -it d874928f4cc7 /bin/sh` 를 통해 해당 컨테이너 내부의 `/bin/sh` 셸에 접속 
+-`cd plugins` **>** `cd extra-user-details` **>** `ls | grep -r "value=.`
+
+: WordPress 설치 디렉토리에서 `plugins`디렉토리로 이동 후, 내에서 특정 플러그인 디렉토리 `extra-user-details`로 이동함. 그리고 현재 디렉토리에서 `value=`를 포함하는 파일을 검색해봄.
+![[스크린샷 2024-11-07 오전 1.29.07.png]]
+=> (현재 마우스 커서의 위치) 해당 코드 부분에만 **`esc_attr()`** 함수가 존재하지 않음을 발견.
+
+다음으로,  WordPress의 Extra User Details 플러그인 **0.5버전 이상**의 버전을 다운로드하기 앞서, 취약점을 발견한 이전버전을 **비활성화** 후 삭제해야 함.
+![[스크린샷 2024-11-07 오전 1.52.00.png]]
+
+이후 `extra-user-details.0.5.2`플러그인을 설치 후 활성화한 후 위와 동일한 과정으로 코드내용을 확인해보았음.
+
+![[스크린샷 2024-11-07 오전 1.53.51.png]]
+![[스크린샷 2024-11-07 오전 1.56.33.png]]
+-`cat extra_user_details.php` 명령을 사용해 해당 파일의 내용을 화면에 출력.
+
+![[스크린샷 2024-11-07 오전 2.00.09.png]]
+=> 이전 버전에서 확인한 것과 달리 **`esc_attr()`** 함수가 포함되어 있음을 발견할 수 있었음.
 
